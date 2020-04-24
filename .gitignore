@@ -1,0 +1,6 @@
+*.csv
+*.tar
+last_*
+upload_*
+temp_*
+.settings

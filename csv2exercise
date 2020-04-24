@@ -1,0 +1,118 @@
+#!/bin/bash
+
+#SECRET="MyApiSecret"
+#SERVER="MyNightscoutInstance"
+#PORT=4711
+. .settings || exit 99
+SECRETSHA1=`echo -n ${SECRET} | sha1sum - | cut -c1-40`
+
+WHAT=exercise
+
+# false && \
+{
+echo downloading $WHAT ...
+LANG=C \
+curl \
+    -s \
+    -H "API-SECRET: ${SECRETSHA1}" \
+    -H 'Accept: */*' \
+    -H 'Content-Type: application/json' \
+    "https://${SERVER}:${PORT}/api/v1/treatments.json?x=`date +%s`&count=1000&find\[created_at\]\[\$lte\]=2099-12-31&find\[notes\]=/%20min%20/" \
+| tr '{}' '\012' \
+| grep " min " \
+| while read line
+do
+    id=`echo ${line} | sed -e 's~^.*"_id":"\([0-9a-f][0-9a-f]*\)".*~\1~'`
+    timestamp=`echo ${line} | sed -e 's~^.*"timestamp":\([0-9][0-9]*\).*~\1~'`
+    multinotes=`echo ${line} | sed -e 's~^.*"notes":"\([^"]*\)".*~\1~'`
+    createdat=`echo ${line} | sed -e 's~^.*"created_at":"\([^"]*\).*~\1~'`
+    echo "$id, $timestamp ($createdat) : $multinotes" >&2
+    echo $multinotes \
+    | sed 's~ → ~§~g' \
+    | tr '§' '\012' \
+    | grep ' min ' \
+    | while read note
+    do
+	min=`echo $note | sed 's~  *min  *.*~~' | tr -dc '[0-9]'`
+	what=`echo $note | sed 's~.*  *min  *~~'`
+	echo "\"$id\",\"$timestamp\",,\"$createdat\",\"Manual\",,\"$what $min min\",,,"
+    done
+done \
+> input_${WHAT}.csv
+}
+
+infile=input_${WHAT}.csv
+outfile=upload_${WHAT}.json
+last=`cat last_exercise`
+
+(
+echo -n '['
+cat $infile \
+| ruby -e '
+
+after='$last'+0
+
+# CSV parser in Ruby
+# -*- coding: UTF-8 -*-
+require "csv"
+require "pp"
+require "time"
+
+data=$stdin.read
+
+data.force_encoding("utf-8")
+csv = CSV.parse(data, encoding: "utf-8")
+csv.each { |row|
+    dt = row[3]
+    ep = row[1].to_i/1000
+    if ep <= after
+	next
+    end
+    if row[6] =~ /(.*?)\s+(\d+) min/
+	# done what?
+	notes = $1
+	# for how long? (max 240 min)
+	val = $2.to_i
+	if val > 0
+	    printf("%s\t%d\t%3d\t%s\t%s\n", dt, ep, val, "Exercise", notes)
+	end
+    end
+}
+
+' \
+| while read dst dat val type notes
+do
+#    json="{\"eventType\":\"$type\",\"date\":${dat}000,\"created_at\":\"$dst\",\"enteredBy\":\"`basename $0`\",\"duration\":$val,\"notes\":\"$val\"}"
+    json="{\"eventType\":\"$type\",\"date\":${dat}000,\"created_at\":\"$dst\",\"enteredBy\":\"`basename $0`\",\"duration\":$val,\"notes\":\"$val\",\"exercise\":\"$notes\"}"
+    echo $json
+done \
+| sort | uniq \
+| while read line
+do
+    echo ,
+    echo -n "$line"
+done
+echo ""
+echo ']'
+) \
+| sed 's~\[,~[~' > $outfile
+
+
+
+## returned matching record:
+# "_id":"8bc66783cc1148dbb26ff0bf",
+# "timestamp":1587298675754,
+# "eventType":"<none>",
+# "enteredBy":"xdrip pos:117",
+# "notes":"foo → 255 min Bike m-l → bar",
+# "uuid":"8bc66783-cc11-48db-b26f-f0bfd50bd9a8",
+# "carbs":8,
+# "insulinInjections":"[]",
+# "created_at":"2020-04-19T12:17:55.000Z",
+# "sysTime":"2020-04-19T14:17:55.754+0200",
+# "utcOffset":0,
+# "insulin":null
+
+# old style "17","12/29/19 15:35",,"","Manual",,"Light Fuß 60 min",,,
+# new style "b64d2572561c4a27abe25830","1586239500000",,"2020-04-07T06:05:00.000Z","Manual",,"Rad m 20 min",,,
+
