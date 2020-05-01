@@ -15,9 +15,9 @@ up:	.settings
 
 tar:
 	mkdir -p SAVE
-	tar cf SAVE/all-`date +%Y%m%d-%H%M%S`.tar *.csv last_* upload_*
+	tar cf SAVE/all-`date +%Y%m%d-%H%M%S`.tar temp_* last_* upload_* *.csv
 
 clean:
-	rm last_* upload_* *.csv
+	rm temp_* last_* upload_* *.csv
 
 .PHONY:  last exe  new up tar clean
