@@ -59,7 +59,8 @@ do
     timestamp=`echo ${line} | sed -e 's~^.*"timestamp":\([0-9][0-9]*\).*~\1~'`
     multinotes=`echo ${line} | sed -e 's~^.*"notes":"\([^"]*\)".*~\1~'`
     createdat=`echo ${line} | sed -e 's~^.*"created_at":"\([^"]*\).*~\1~'`
-    echo "$id, $timestamp ($createdat) : $multinotes" >&2
+    [ ${timestamp} -ge `cat last_exercise`000 ] && \
+        echo "$id, $timestamp ($createdat) : $multinotes" >&2
     echo $multinotes \
     | sed 's~ → ~§~g' \
     | tr '§' '\012' \
@@ -135,9 +136,10 @@ done
 echo ""
 echo ']'
 ) \
-| sed 's~\[,~[~' > $outfile
+| sed 's~\[,~[~' \
+| tee $outfile
 
-
+exit
 
 ## returned matching record:
 # "_id":"8bc66783cc1148dbb26ff0bf",
@@ -155,17 +157,3 @@ echo ']'
 
 # old style "17","12/29/19 15:35",,"","Manual",,"Light Fuß 60 min",,,
 # new style "b64d2572561c4a27abe25830","1586239500000",,"2020-04-07T06:05:00.000Z","Manual",,"Rad m 20 min",,,
-
-#!/bin/bash
-
-# $1=timestamp $2=what
-
-#timestamp=`date $1 +%s`
-
-ep=`ts2seconds "$1"`
-ts=`seconds2utc $ep`
-cat <<EOF
-{"eventType":"Exercise","date":${ep}000,"created_at":"${ts}.000Z","enteredBy":"csv2exercise","duration":$2,"notes":"$2","exercise":"$3"}
-EOF
-
-exit
