@@ -1,17 +1,14 @@
 #!/usr/bin/make -f
 
-last:	.settings
+
+json:	.settings
 	./last-query
-
-exe:	upload_exercise.json
-
-upload_exercise.json:	last_exercise
 	./csv2exercise
 
-new:	last exe
-
-up:	.settings
+upload:	.settings
 	./upload-data
+
+all:	json upload tar clean
 
 tar:
 	mkdir -p SAVE
@@ -20,4 +17,4 @@ tar:
 clean:
 	rm temp_* last_* upload_* *.csv
 
-.PHONY:  last exe  new up tar clean
+.PHONY:  all json upload  tar clean
