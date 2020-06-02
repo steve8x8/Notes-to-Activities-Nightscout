@@ -1,5 +1,6 @@
 #!/usr/bin/make -f
 
+all:	json upload tar clean
 
 json:	.settings
 	./last-query
@@ -8,11 +9,9 @@ json:	.settings
 upload:	.settings
 	./upload-data
 
-all:	json upload tar clean
-
 tar:
 	mkdir -p SAVE
-	tar cf SAVE/all-`date +%Y%m%d-%H%M%S`.tar temp_* last_* upload_* *.csv
+	LC_ALL=C tar cf SAVE/all-`date +%Y%m%d-%H%M%S`.tar temp_* last_* upload_* *.csv
 
 clean:
 	rm temp_* last_* upload_* *.csv

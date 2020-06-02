@@ -28,6 +28,7 @@ do
     --data @upload_${WHAT}.json \
     2>&1 \
   | tee upload_${WHAT}.log
+  echo ""
 done
 
 exit
