@@ -1,0 +1,126 @@
+#!/bin/bash
+
+# $1=timestamp $2=what
+
+#timestamp=`date $1 +%s`
+# time converter in Ruby for stupid MacOS
+ts2seconds(){
+echo $1 \
+| ruby -e '
+require "date"
+require "time"
+timespec = $stdin.read
+begin
+    timestamp=Time.parse(timespec)
+    puts timestamp.to_i
+rescue
+    puts 0 #Time.now.to_i
+end
+'
+}
+
+seconds2utc(){
+echo $1 \
+| ruby -e '
+require "date"
+require "time"
+timespec = $stdin.read
+begin
+    t=Time.at(timespec.to_i).utc
+rescue
+    t=Time.now.utc
+end
+puts t.iso8601.split(/Z/)[0]
+'
+}
+
+if [ -z "$1" -o -z "$2" -o -z "$3" ]
+then
+    echo "Usage:    $0  <timespec> <duration> <activity>"
+    echo "    timespec: [[[YYYY-]mm-]ddT]HH:MM[:SS][Z]"
+    echo "    duration: in minutes (>0)"
+    echo "    activity: keep_it_short"
+    echo "Examples: $0  07:15 30 bike-trip"
+    echo "          $0  04-30T23:00 120 \"Walpurgis night flight\""
+    exit 1
+fi
+
+timespec="${1// /T}"
+duration="${2%% *}"
+activity="$3"
+
+case ${timespec} in
+    [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T*)
+	;;
+    [0-9][0-9]-[0-9][0-9]T*)
+	timespec="`date +%Y-`${timespec}"
+	;;
+    [0-9][0-9]T*)
+	timespec="`date +%Y-%m-`${timespec}"
+	;;
+    [0-9][0-9]:[0-9][0-9]*)
+	timespec="`date +%Y-%m-%dT`${timespec}"
+	;;
+    *)
+	echo "Cannot understand timespec \"${timespec}\""
+	exit 1
+	;;
+esac
+
+if [ ${duration} -le 0 ]
+then
+	echo "Invalid duration \"${duration}\", skipping"
+	exit 1
+fi
+
+ep=`ts2seconds "${timespec}"`
+
+if [ ${ep} -gt `date +%s` ]
+then
+	echo "Time \"${timespec}\" in the future, skipping"
+	exit 1
+fi
+
+ts=`seconds2utc ${ep}`
+cat <<EOF > upload_extra.json
+[
+{"eventType":"Exercise","date":${ep}000,"created_at":"${ts}.000Z","enteredBy":"csv2exercise","duration":${duration},"notes":"${duration}","exercise":"${activity}"}
+]
+EOF
+
+cat upload_extra.json
+
+read -p "OK ? " x
+
+#SECRET="MyApiSecret"
+#SERVER="MyNightscoutInstance"
+#PORT=4711
+. .settings || exit 99
+SECRETSHA1=`echo -n ${SECRET} | sha1sum - | cut -c1-40`
+
+for WHAT in \
+  extra \
+
+do
+  # skip empty uploads
+  if [ `cat upload_${WHAT}.json | wc -l` -le 2 ]
+  then
+    echo empty $WHAT ... skipping.
+    continue
+  fi
+  echo uploading $WHAT ...
+  LANG=C \
+  curl \
+    -v \
+    -X POST \
+    -H "API-SECRET: ${SECRETSHA1}" \
+    -H 'Accept: */*' \
+    -H 'Content-Type: application/json' \
+    "https://${SERVER}:${PORT}/api/v1/treatments.json" \
+    --data @upload_${WHAT}.json \
+    2>&1 \
+  | tee upload_${WHAT}.log
+  echo ""
+done
+
+exit
