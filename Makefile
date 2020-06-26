@@ -14,6 +14,6 @@ tar:
 	LC_ALL=C tar cf SAVE/all-`date +%Y%m%d-%H%M%S`.tar temp_* last_* upload_* *.csv
 
 clean:
-	rm temp_* last_* upload_* *.csv
+	rm -rf temp_* last_* upload_* *.csv
 
 .PHONY:  all json upload  tar clean

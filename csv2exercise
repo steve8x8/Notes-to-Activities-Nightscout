@@ -39,6 +39,17 @@ puts t.iso8601.split(/Z/)[0]
 '
 }
 
+
+infile=input_${WHAT}.csv
+outfile=upload_${WHAT}.json
+last=`cat 2>/dev/null last_exercise`
+
+if [ -z "$last" ]
+then
+    echo No last exercise timestamp found, exit
+    exit 99
+fi
+
 # false && \
 {
 echo downloading $WHAT ...
@@ -79,12 +90,8 @@ do
 	echo "\"$id\",\"$timestamp\",,\"$createdat\",\"Manual\",,\"$what $min min\",,,"
     done
 done \
-> input_${WHAT}.csv
+> ${infile}
 }
-
-infile=input_${WHAT}.csv
-outfile=upload_${WHAT}.json
-last=`cat last_exercise`
 
 (
 echo -n '['
