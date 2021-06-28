@@ -19,7 +19,7 @@ do
   echo uploading $WHAT ...
   LANG=C \
   curl \
-    -v \
+    -s \
     -X POST \
     -H "API-SECRET: ${SECRETSHA1}" \
     -H 'Accept: */*' \
