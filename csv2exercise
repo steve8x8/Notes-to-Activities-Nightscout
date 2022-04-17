@@ -59,7 +59,7 @@ curl \
     -H "API-SECRET: ${SECRETSHA1}" \
     -H 'Accept: */*' \
     -H 'Content-Type: application/json' \
-    "https://${SERVER}:${PORT}/api/v1/treatments.json?x=`date +%s`&count=1000&find\[created_at\]\[\$lte\]=2099-12-31&find\[notes\]=/%20min%20/" \
+    "https://${SERVER}:${PORT}/api/v1/treatments.json?x=`date +%s`&count=10&find\[created_at\]\[\$gte\]=2022-04-01&find\[notes\]=/%20min%20/" \
 | tee temp_response.json \
 | sed -e 's~"\[{[^}]*}\]"~""~g' \
 | tr '({})' '\012' \
